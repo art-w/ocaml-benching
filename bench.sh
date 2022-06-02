@@ -1,14 +1,19 @@
 #!/bin/sh
 
-cd ../ocaml
-opam switch create custom --empty
-opam install .
-
-
+export BENCHMARK_FILE=$(realpath $(mktemp bench.XXX.tsv))
 export NB_RUNS=1
-export BENCHMARK_FILE="$1"
-HERE=$(realpath "$(dirname "$0")")
-export HERE
+export HERE=$(realpath .)
+
+# cd ../ocaml
+# git checkout 4.08.0
+# opam switch create custom --empty
+# eval $(opam env --switch=custom)
+# opam install .
+
+opam switch create 4.05.0
+eval $(opam env --switch=4.05.0)
+opam switch list
+ocaml --version
 
 binaries() {
   project=$1
@@ -31,7 +36,7 @@ timings () {
     | awk "{sum[\$2] += \$1} END{for (i in sum) print \"projects\\t$project/\" i \"\\t\" sum[i] \"\tsecs\"}" \
     >> "$BENCHMARK_FILE"
   binaries "$project"
-  LC_NUMERIC=POSIX awk -f "${HERE}/testsuite/tests/benchmarks/to_json.awk" < "$BENCHMARK_FILE"
+  LC_NUMERIC=POSIX awk -f "${HERE}/to_json.awk" < "$BENCHMARK_FILE"
   rm "$BENCHMARK_FILE"
 }
 
@@ -62,8 +67,6 @@ bootstrap () {
   done
 }
 
-eval $(opam env)
-
 # opam switch create . --empty
 # opam pin -ny .
 
@@ -80,31 +83,6 @@ eval $(opam env)
 # opam install base-unix base-bigarray base-threads
 # eval $(opam env)
 
-echo
-echo '--- IS OCAML OKAY? ---'
-echo
-
-ocaml --version
-
-opam switch list
-
-echo
-echo '--- IS OCAML OKAY? AND NOW? ---'
-echo
-
-eval $(opam env --switch=. --set-switch)
-
-ocaml --version
-
-opam switch list
-
-# echo
-# echo '--- OCAML BOOTSRAP ---'
-# echo
-# 
-# bootstrap
-
-ocaml --version
 
 echo
 echo '--- DUNE WILL BE INSTALLED ---'
@@ -121,6 +99,7 @@ opam switch list
 cd ..
 
 cd dune
+opam install -y -t --deps-only .
 for i in $(seq 1 "$NB_RUNS"); do
   rm -f build.log
   make clean
@@ -144,7 +123,7 @@ opam_build() {
   project=$1
   target=${2:-.}
   cd "$project"
-  opam pin -ny .
+  opam pin -ny --with-version=dev .
   opam install -y -t --deps-only .
   cd ..
   dune_build "$project" "$target"
@@ -157,7 +136,7 @@ opam_build ocamlgraph
 
 cd irmin
 git checkout 2.9.0
-opam pin -ny .
+opam pin -ny --with-version=dev .
 opam install -y --deps-only .
 for i in $(seq 1 "$NB_RUNS"); do
   rm -f build.log
@@ -180,13 +159,13 @@ for i in $(seq 1 "$NB_RUNS"); do
 done
 cd ..
 
-dune_build deque
+# dune_build deque
 
 opam_build ocaml-containers
 
 opam_build decompress
 
-opam_build menhir '--only-packages=menhir'
+# opam_build menhir '--only-packages=menhir'
 
 # dune_build mirage
 
